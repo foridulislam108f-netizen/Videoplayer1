@@ -14,12 +14,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
-      - name: Unzip project
-        run: unzip -q VideoPlayerPro.zip -d work
-      - name: Build debug APK
-        working-directory: work/VideoPlayerPro
-        run: gradle assembleDebug --stacktrace
+      - name: Unzip and build
+        run: |
+          mkdir work
+          unzip -q Videoplayer1.zip -d work
+          DIR=$(dirname "$(find work -name settings.gradle | head -n 1)")
+          cd "$DIR"
+          gradle assembleDebug --stacktrace
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/Videoplayer1.apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: VideoPlayerPro-apk
-          path: work/VideoPlayerPro/app/build/outputs/apk/debug/app-debug.apk
+          name: Videoplayer1-apk
+          path: out/Videoplayer1.apk
