@@ -30,12 +30,30 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Find project folder
+      - name: Find project folder (unzips the zip if needed)
         run: |
-          SETTINGS=$(find . -maxdepth 3 -name 'settings.gradle*' -not -path './.git/*' | head -n 1)
-          if [ -z "$SETTINGS" ]; then echo "settings.gradle not found"; exit 1; fi
-          DIR=$(dirname "$SETTINGS")
+          find_settings() {
+            find . -maxdepth 5 -name 'settings.gradle*' -not -path './.git/*' | head -n 1
+          }
+          SETTINGS=$(find_settings)
+          if [ -z "$SETTINGS" ]; then
+            echo "No Gradle project in repo - looking for a zip file..."
+            ZIP=$(find . -maxdepth 3 -iname '*.zip' -not -path './.git/*' | sort | head -n 1)
+            if [ -z "$ZIP" ]; then
+              echo "No settings.gradle and no zip file found. Files in repo:"
+              find . -maxdepth 3 -not -path './.git/*' | head -50
+              exit 1
+            fi
+            echo "Unzipping $ZIP"
+            mkdir -p "$RUNNER_TEMP/src"
+            unzip -q -o "$ZIP" -d "$RUNNER_TEMP/src"
+            cd "$RUNNER_TEMP/src"
+            SETTINGS=$(find_settings)
+            if [ -z "$SETTINGS" ]; then echo "settings.gradle not found inside the zip"; exit 1; fi
+          fi
+          DIR=$(cd "$(dirname "$SETTINGS")" && pwd)
           echo "Project folder: $DIR"
+          ls "$DIR"
           echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
 
       - name: Build APK
