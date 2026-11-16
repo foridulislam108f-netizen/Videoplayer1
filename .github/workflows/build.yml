@@ -1,29 +1,54 @@
 name: Build APK
+
 on:
   push:
+    branches: [ main, master ]
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
-      - name: Unzip and build
-        run: |
-          mkdir work
-          unzip -q Videoplayer1.zip -d work
-          DIR=$(dirname "$(find work -name settings.gradle | head -n 1)")
-          cd "$DIR"
-          gradle assembleDebug --stacktrace
-          mkdir -p "$GITHUB_WORKSPACE/out"
-          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/Videoplayer1.apk"
-      - uses: actions/upload-artifact@v4
+
+      - name: Build APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk VideoPlayerPro.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: Videoplayer1-apk
-          path: out/Videoplayer1.apk
+          name: VideoPlayerPro-apk
+          path: VideoPlayerPro.apk
+
+      - name: Publish latest APK to Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest VideoPlayerPro.apk \
+            --title "VideoPlayerPro (build ${{ github.run_number }})" \
+            --notes "Latest build #${{ github.run_number }}. Download VideoPlayerPro.apk and install it over the old app." \
+            --target "${{ github.sha }}" \
+            --latest
