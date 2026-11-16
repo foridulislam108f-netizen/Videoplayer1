@@ -30,11 +30,20 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Find project folder
+        run: |
+          SETTINGS=$(find . -maxdepth 3 -name 'settings.gradle*' -not -path './.git/*' | head -n 1)
+          if [ -z "$SETTINGS" ]; then echo "settings.gradle not found"; exit 1; fi
+          DIR=$(dirname "$SETTINGS")
+          echo "Project folder: $DIR"
+          echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
+
       - name: Build APK
+        working-directory: ${{ env.PROJECT_DIR }}
         run: gradle assembleDebug --stacktrace
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk VideoPlayerPro.apk
+        run: cp "$PROJECT_DIR/app/build/outputs/apk/debug/app-debug.apk" VideoPlayerPro.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -49,6 +58,6 @@ jobs:
           gh release delete latest --cleanup-tag --yes || true
           gh release create latest VideoPlayerPro.apk \
             --title "VideoPlayerPro (build ${{ github.run_number }})" \
-            --notes "Latest build #${{ github.run_number }}. Download VideoPlayerPro.apk and install it over the old app." \
+            --notes "Version 3.2 - build ${{ github.run_number }}. Download VideoPlayerPro.apk and install it over the old app." \
             --target "${{ github.sha }}" \
             --latest
